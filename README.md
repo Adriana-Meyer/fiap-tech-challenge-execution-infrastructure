@@ -1,6 +1,6 @@
 # fiap-tech-challenge-execution-infrastructure
 
-Infraestrutura do **Execution Service** (fila de execução dos serviços da oficina) do Tech Challenge — FIAP Pós-Tech, Arquitetura de Software, turma 15SOAT, **Fase 4** (microsserviços + Saga). Provisiona, via Terraform, o que o serviço precisa no cluster e na AWS **exceto o banco**: o namespace Kubernetes com a cota de recursos, e a fila SQS de comandos com a sua DLQ.
+Infraestrutura do **Execution Service** (fila de execução dos serviços da oficina) do Tech Challenge — FIAP Pós-Tech, Arquitetura de Software, turma 15SOAT. Provisiona, via Terraform, o que o serviço precisa no cluster e na AWS **exceto o banco**: o namespace Kubernetes com a cota de recursos, e a fila SQS de comandos com a sua DLQ.
 
 | Repositório | Papel |
 |---|---|
@@ -96,7 +96,7 @@ Além de `fmt` e `validate` (CI), a configuração inteira foi aplicada e destru
 - a cota rejeita um pod sem requests/limits, um pod que passaria do teto de memória e um segundo `Service` do tipo `LoadBalancer`;
 - um comando recebido 3 vezes sem ser apagado vai para a DLQ com o corpo intacto.
 
-O `apply` contra a AWS real depende das credenciais do Lab e é feito na fase de validação no Lab.
+O `apply` contra a AWS real depende das credenciais do Lab e é feito na validação no Lab.
 
 ## APIs
 

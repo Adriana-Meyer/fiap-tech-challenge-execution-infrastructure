@@ -1,0 +1,58 @@
+name: Release
+
+# Merging a branch named release/X.Y.Z into main tags the merge commit as X.Y.Z
+# and publishes a GitHub Release with the notes generated from the pull requests
+# since the previous release. The tag marks the delivered state of the repository.
+#
+# The version comes from the branch name and must be X.Y.Z (no "v"). An existing
+# tag is never overwritten: the job fails instead.
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Tag and publish the release
+    if: >-
+      github.event.pull_request.merged == true &&
+      startsWith(github.event.pull_request.head.ref, 'release/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Read the version from the branch name
+        id: version
+        env:
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          VERSION="${BRANCH#release/}"
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Branch '$BRANCH' does not match release/X.Y.Z, no tag was created."
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Refuse to overwrite an existing tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${VERSION}" >/dev/null 2>&1; then
+            echo "::error::Tag ${VERSION} already exists. Use the next version."
+            exit 1
+          fi
+
+      - name: Create the tag and the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+        run: |
+          gh release create "$VERSION" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$MERGE_SHA" \
+            --title "$VERSION" \
+            --generate-notes

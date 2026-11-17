@@ -1,0 +1,61 @@
+name: Terraform — Execution namespace and command queue
+
+# workflow_dispatch permanently, by design — not a stopgap. Manual trigger
+# avoids burning AWS Academy's limited budget/session time on every merge. The
+# run itself is automatic end-to-end once triggered, with no manual steps
+# during it — only the trigger is manual, fired whenever convenient and the Lab
+# session is active.
+#
+# Requires os-infrastructure to have already been applied at least once in the
+# same AWS session: this repo finds the cluster by its fixed name through a
+# Terraform data source, not through a hardcoded state reference.
+#
+# Order of use in a Lab session:
+#   apply   os-infrastructure -> this repo -> deploy of execution-service
+#   destroy execution-service (its `destroy` action releases the load balancer)
+#           -> this repo -> os-infrastructure
+# Destroying this repo first would delete the namespace with the Service still
+# in it, and the load balancer could be left behind.
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Terraform action to run'
+        required: true
+        default: 'apply'
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+
+jobs:
+  terraform:
+    name: Terraform ${{ github.event.inputs.action }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+
+      - name: Terraform init
+        run: terraform init
+
+      - name: Terraform plan
+        if: github.event.inputs.action == 'plan'
+        run: terraform plan
+
+      - name: Terraform apply
+        if: github.event.inputs.action == 'apply'
+        run: terraform apply -auto-approve
+
+      - name: Terraform destroy
+        if: github.event.inputs.action == 'destroy'
+        run: terraform destroy -auto-approve
